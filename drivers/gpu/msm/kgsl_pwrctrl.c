@@ -37,6 +37,9 @@ struct clk_pair {
 	uint map;
 };
 
+/* MARUKO KDDI issue num@1708 p13447 shinjg 20130225 */
+#define CONFIG_QALCOMM_BUG_FIX_EBI_ERROR
+
 struct clk_pair clks[KGSL_MAX_CLKS] = {
 	{
 		.name = "src_clk",

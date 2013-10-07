@@ -258,6 +258,9 @@ struct msm_cam_media_controller {
 	uint8_t opencnt; /*mctl ref count*/
 	const char *apps_id; /*ID for app that open this session*/
 	struct mutex lock;
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK	
+	struct wake_lock wake_lock; /*avoid low power mode when active*/ 
+#endif
 	struct pm_qos_request idle_pm_qos; /*avoid low power mode when active*/
 	struct pm_qos_request pm_qos_req_list;
 	struct msm_mctl_pp_info pp_info;

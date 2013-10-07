@@ -22,6 +22,7 @@
 #include <mach/restart.h>
 #include "devices.h"
 #include "board-8960.h"
+#include <linux/mfd/pm8xxx/vibrator.h>  // mirinae
 
 struct pm8xxx_gpio_init {
 	unsigned			gpio;
@@ -108,8 +109,23 @@ static struct pm8xxx_gpio_init pm8921_gpios[] __initdata = {
 	PM8XXX_GPIO_INPUT(26,	    PM_GPIO_PULL_UP_30), /* SD_CARD_DET_N */
 	PM8XXX_GPIO_OUTPUT(43, 1),                       /* DISP_RESET_N */
 	PM8XXX_GPIO_OUTPUT(42, 0),                      /* USB 5V reg enable */
+#if defined (CONFIG_MACH_MSM8960_EF45K) || defined (CONFIG_MACH_MSM8960_EF47S) || defined (CONFIG_MACH_MSM8960_EF46L)
+#ifdef FEATURE_ANDROID_PANTECH_USB_OTG_MODE
+    PM8XXX_GPIO_OUTPUT(36, 1),                      /* control : USB_HS_ID */
+    PM8XXX_GPIO_OUTPUT(44, 1),                      /* control : PMIC_HS_ID */
+    PM8XXX_GPIO_INPUT(25,	 PM_GPIO_PULL_NO), /* external pull-up 1p8*/
+#else
+    PM8XXX_GPIO_OUTPUT(25,	    1),
+#endif
+#endif
 	/* TABLA CODEC RESET */
 	PM8XXX_GPIO_OUTPUT_STRENGTH(34, 1, PM_GPIO_STRENGTH_MED)
+#ifdef CONFIG_PANTECH_FB_MSM_MHL_SII9244 
+#ifdef CONFIG_PANTECH_MHL_VCC_3P3
+#else
+PM8XXX_GPIO_OUTPUT(14, PM_GPIO_FUNC_NORMAL),
+#endif
+#endif
 };
 
 /* Initial PM8921 MPP configurations */
@@ -176,6 +192,14 @@ static struct pm8xxx_adc_amux pm8xxx_adc_channels_data[] = {
 		ADC_DECIMATION_TYPE2, ADC_SCALE_XOTHERM},
 	{"pa_therm0", ADC_MPP_1_AMUX3, CHAN_PATH_SCALING1, AMUX_RSV1,
 		ADC_DECIMATION_TYPE2, ADC_SCALE_PA_THERM},
+#ifdef CONFIG_PANTECH_CHARGER
+    {"cable_id", ADC_MPP_1_AMUX6, CHAN_PATH_SCALING1, AMUX_RSV1,
+        ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
+#endif
+#if defined (CONFIG_MACH_MSM8960_EF45K) || defined (CONFIG_MACH_MSM8960_EF47S) || defined (CONFIG_MACH_MSM8960_EF46L)
+    {"touch_id", ADC_MPP_1_AMUX6, CHAN_PATH_SCALING1, AMUX_RSV1,		//p13106 Touch_ID
+        ADC_DECIMATION_TYPE2, ADC_SCALE_DEFAULT},
+#endif	
 };
 
 static struct pm8xxx_adc_properties pm8xxx_adc_data = {
@@ -216,6 +240,18 @@ static struct pm8xxx_pwrkey_platform_data pm8xxx_pwrkey_pdata = {
 	.wakeup			= 1,
 };
 
+static struct pm8xxx_vibrator_platform_data pm8xxx_vib_pdata = {  // mirinae
+    .initial_vibrate_ms  = 500,
+    .level_mV = 3000,
+    .max_timeout_ms = 15000,
+};
+
+#if defined(CONFIG_PANTECH_PMIC_BUTTON_POWERONOFF)
+static struct pm8xxx_pwrkey_emulation_platform_data pm8xxx_pwrkey_emulation_pdata = {
+    .trigger_delay_ms	= 30000,
+};
+#endif
+
 /* Rotate lock key is not available so use F1 */
 #define KEY_ROTATE_LOCK KEY_F1
 
@@ -245,6 +281,306 @@ static struct pm8xxx_keypad_platform_data keypad_data_liquid = {
 	.keymap_data            = &keymap_data_liquid,
 };
 
+/* mirinae added 20111214 Start */
+#if defined (CONFIG_MACH_MSM8960_EF46L) || defined(CONFIG_MACH_MSM8960_EF45K) || defined (CONFIG_MACH_MSM8960_EF47S) || \
+    defined (CONFIG_MACH_MSM8960_VEGAPVW) || defined (CONFIG_MACH_MSM8960_VEGAPKDDI)
+static const unsigned int keymap[] = { 
+    KEY(0, 0, KEY_VOLUMEUP),			// DRV1, SNS1 : Volume UP    
+    KEY(0, 1, KEY_VOLUMEDOWN),			// DRV1, SNS2 : Volume DOWN
+    KEY(0, 2, KEY_MENU),				// DRV1, SNS3 : Volume MENU
+    KEY(0, 3, KEY_HOME),				// DRV1, SNS4 : Volume HOME
+    KEY(0, 4, KEY_BACK),				// DRV1, SNS5 : Volume BACK
+};
+
+static struct matrix_keymap_data keymap_data = {
+    .keymap_size    = ARRAY_SIZE(keymap),
+    .keymap         = keymap,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+    .input_name             = "keypad_8960",
+    .input_phys_device      = "keypad_8960/input0",
+    .num_rows               = 1,
+    .num_cols               = 5,
+    .rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+    .cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+    .debounce_ms            = 15,
+    .scan_delay_ms          = 32,
+    .row_hold_ns            = 91500,
+    .wakeup                 = 1,
+    .keymap_data            = &keymap_data,
+};
+
+#elif defined (CONFIG_MACH_MSM8960_STARQ) 
+ #if (BOARD_VER > WS11)  /*  CONFIG_MACH_MSM8960_STARQ   && > WS10 */
+static const unsigned int keymap_starq[] = {
+    KEY(0, 0, KEY_Q),
+    KEY(0, 1, KEY_A),
+    KEY(0, 2, KEY_G),
+    KEY(0, 3, KEY_C),
+    KEY(0, 4, KEY_LEFTSHIFT),
+    KEY(0, 5, KEY_LEFTALT),
+    KEY(0, 6, KEY_9),
+
+    KEY(1, 0, KEY_VOLUMEUP),
+    KEY(1, 1, KEY_S),
+    KEY(1, 2, KEY_H),
+    KEY(1, 3, KEY_V),
+    KEY(1, 4, KEY_Z),
+    KEY(1, 5, KEY_MESSAGE), // p11223_Key
+    KEY(1, 6, KEY_0),
+
+    KEY(2, 0, KEY_VOLUMEDOWN),
+    KEY(2, 1, KEY_D),
+    KEY(2, 2, KEY_U),
+    KEY(2, 3, KEY_M),
+    KEY(2, 4, KEY_X),
+    KEY(2, 5, KEY_COMMA),
+    KEY(2, 6, KEY_RESERVED),
+
+    KEY(3, 0, KEY_W),
+    KEY(3, 1, KEY_F),
+    KEY(3, 2, KEY_I),
+    KEY(3, 3, KEY_J),
+    KEY(3, 4, KEY_B),
+    KEY(3, 5, KEY_SPACE),
+    KEY(3, 6, KEY_RESERVED),
+
+    KEY(4, 0, KEY_E),
+    KEY(4, 1, KEY_T),
+    KEY(4, 2, KEY_O),
+    KEY(4, 3, KEY_K),
+    KEY(4, 4, KEY_N),
+    KEY(4, 5, KEY_LEFT),
+    KEY(4, 6, KEY_RESERVED),
+
+    KEY(5, 0, KEY_R),
+    KEY(5, 1, KEY_Y),
+    KEY(5, 2, KEY_P),
+    KEY(5, 3, KEY_L),
+    KEY(5, 4, KEY_UP),
+    KEY(5, 5, KEY_DOWN),
+    KEY(5, 6, KEY_RESERVED),
+
+    KEY(6, 0, KEY_BACKSPACE),
+    KEY(6, 1, KEY_ENTER),
+    KEY(6, 2, KEY_BROWSER),  // p11223_Key
+    KEY(6, 3, KEY_5),
+    KEY(6, 4, KEY_DOT),
+    KEY(6, 5, KEY_RIGHT),
+    KEY(6, 6, KEY_RESERVED),
+
+    KEY(7, 0, KEY_1),
+    KEY(7, 1, KEY_2),
+    KEY(7, 2, KEY_3),
+    KEY(7, 3, KEY_4),
+    KEY(7, 4, KEY_6),
+    KEY(7, 5, KEY_7),
+    KEY(7, 6, KEY_8),
+};
+static struct matrix_keymap_data keymap_data_starq = {
+    .keymap_size    = ARRAY_SIZE(keymap_starq),
+    .keymap         = keymap_starq,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+    .input_name             = "keypad_8960",
+    .input_phys_device      = "keypad_8960/input0",
+    .num_rows               = 8,
+    .num_cols               = 7,
+    .rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+    .cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+    .debounce_ms            = 15,
+    .scan_delay_ms          = 32,
+    .row_hold_ns            = 91500,
+    .wakeup                 = 1,
+    .keymap_data            = &keymap_data_starq,
+};
+ #elif (BOARD_VER == WS11)  /*  CONFIG_MACH_MSM8960_STARQ   && > WS10 */
+static const unsigned int keymap_starq[] = {
+    KEY(0, 0, KEY_Q),
+    KEY(0, 1, KEY_A),
+    KEY(0, 2, KEY_G),
+    KEY(0, 3, KEY_C),
+    KEY(0, 4, KEY_LEFTSHIFT),
+    KEY(0, 5, KEY_LEFTALT),
+    KEY(0, 6, KEY_9),
+    KEY(0, 7, KEY_9),
+
+    KEY(1, 0, KEY_VOLUMEUP),
+    KEY(1, 1, KEY_S),
+    KEY(1, 2, KEY_H),
+    KEY(1, 3, KEY_V),
+    KEY(1, 4, KEY_Z),
+    KEY(1, 5, KEY_MENU),
+    KEY(1, 6, KEY_0),
+    KEY(1, 7, KEY_0),
+
+    KEY(2, 0, KEY_VOLUMEDOWN),
+    KEY(2, 1, KEY_D),
+    KEY(2, 2, KEY_U),
+    KEY(2, 3, KEY_M),
+    KEY(2, 4, KEY_X),
+    KEY(2, 5, KEY_COMMA),
+    KEY(2, 6, KEY_RESERVED),
+    KEY(2, 7, KEY_RESERVED),
+
+    KEY(3, 0, KEY_W),
+    KEY(3, 1, KEY_F),
+    KEY(3, 2, KEY_I),
+    KEY(3, 3, KEY_J),
+    KEY(3, 4, KEY_B),
+    KEY(3, 5, KEY_SPACE),
+    KEY(3, 6, KEY_RESERVED),
+    KEY(3, 7, KEY_RESERVED),
+
+    KEY(4, 0, KEY_E),
+    KEY(4, 1, KEY_T),
+    KEY(4, 2, KEY_O),
+    KEY(4, 3, KEY_K),
+    KEY(4, 4, KEY_N),
+    KEY(4, 5, KEY_LEFT),
+    KEY(4, 6, KEY_RESERVED),
+    KEY(4, 7, KEY_RESERVED),
+
+    KEY(5, 0, KEY_R),
+    KEY(5, 1, KEY_Y),
+    KEY(5, 2, KEY_P),
+    KEY(5, 3, KEY_L),
+    KEY(5, 4, KEY_UP),
+    KEY(5, 5, KEY_DOWN),
+    KEY(5, 6, KEY_RESERVED),
+    KEY(5, 7, KEY_RESERVED),
+
+    KEY(6, 0, KEY_BACKSPACE),
+    KEY(6, 1, KEY_ENTER),
+    KEY(6, 2, KEY_SEARCH),
+    KEY(6, 3, KEY_5),
+    KEY(6, 4, KEY_DOT),
+    KEY(6, 5, KEY_RIGHT),
+    KEY(6, 6, KEY_RESERVED),
+    KEY(6, 7, KEY_RESERVED),
+
+    KEY(7, 0, KEY_1),
+    KEY(7, 1, KEY_2),
+    KEY(7, 2, KEY_3),
+    KEY(7, 3, KEY_4),
+    KEY(7, 4, KEY_6),
+    KEY(7, 5, KEY_7),
+    KEY(7, 6, KEY_8),
+    KEY(7, 7, KEY_8),
+};
+static struct matrix_keymap_data keymap_data_starq = {
+    .keymap_size    = ARRAY_SIZE(keymap_starq),
+    .keymap         = keymap_starq,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+    .input_name             = "keypad_8960",
+    .input_phys_device      = "keypad_8960/input0",
+    .num_rows               = 8,
+    .num_cols               = 8,
+    .rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+    .cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+    .debounce_ms            = 15,
+    .scan_delay_ms          = 32,
+    .row_hold_ns            = 91500,
+    .wakeup                 = 1,
+    .keymap_data            = &keymap_data_starq,
+};
+ #else  /*  CONFIG_MACH_MSM8960_STARQ  & WS10 */
+static const unsigned int keymap_starq[] = {
+    KEY(0, 0, KEY_Q),
+    KEY(0, 1, KEY_A),
+    KEY(0, 2, KEY_G),
+    KEY(0, 3, KEY_C),
+    KEY(0, 4, KEY_LEFTSHIFT),
+    KEY(0, 5, KEY_LEFTALT),
+
+    KEY(1, 0, KEY_VOLUMEUP),
+    KEY(1, 1, KEY_S),
+    KEY(1, 2, KEY_H),
+    KEY(1, 3, KEY_V),
+    KEY(1, 4, KEY_Z),
+    KEY(1, 5, KEY_MENU),	
+    KEY(2, 0, KEY_VOLUMEDOWN),
+    KEY(2, 1, KEY_D),
+    KEY(2, 2, KEY_U),
+    KEY(2, 3, KEY_M),
+    KEY(2, 4, KEY_X),
+    KEY(2, 5, KEY_HOME),
+    KEY(3, 0, KEY_W),
+    KEY(3, 1, KEY_F),
+    KEY(3, 2, KEY_I),
+    KEY(3, 3, KEY_J),
+    KEY(3, 4, KEY_B),
+    KEY(3, 5, KEY_SPACE),
+    KEY(4, 0, KEY_E),
+    KEY(4, 1, KEY_T),
+    KEY(4, 2, KEY_O),
+    KEY(4, 3, KEY_K),
+    KEY(4, 4, KEY_N),
+    KEY(4, 5, KEY_LEFT),
+    KEY(5, 0, KEY_R),
+    KEY(5, 1, KEY_Y),
+    KEY(5, 2, KEY_P),
+    KEY(5, 3, KEY_L),
+    KEY(5, 4, KEY_UP),
+    KEY(5, 5, KEY_DOWN),
+    KEY(6, 0, KEY_BACKSPACE),
+    KEY(6, 1, KEY_ENTER),
+    KEY(6, 2, KEY_SEARCH),
+    KEY(6, 3, KEY_COMMA),
+    KEY(6, 4, KEY_DOT),
+    KEY(6, 5, KEY_RIGHT),	
+};
+
+static struct matrix_keymap_data keymap_data_starq = {
+    .keymap_size    = ARRAY_SIZE(keymap_starq),
+    .keymap         = keymap_starq,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+    .input_name             = "keypad_8960",
+    .input_phys_device      = "keypad_8960/input0",
+    .num_rows               = 7,
+    .num_cols               = 6,
+    .rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+    .cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+    .debounce_ms            = 15,
+    .scan_delay_ms          = 32,
+    .row_hold_ns            = 91500,
+    .wakeup                 = 1,
+    .keymap_data            = &keymap_data_starq,
+};
+ #endif  /*  CONFIG_MACH_MSM8960_STARQ  Feature End */
+
+#elif defined (CONFIG_MACH_MSM8960_CHEETAH) 
+static const unsigned int keymap[] = {
+    KEY(0, 0, KEY_VOLUMEDOWN),  	// DRV1, SNS1 : Volume Down    // mirinae
+    KEY(0, 1, KEY_VOLUMEUP),	// DRV1, SNS2 : Volume Up
+};
+
+static struct matrix_keymap_data keymap_data = {
+    .keymap_size    = ARRAY_SIZE(keymap),
+    .keymap         = keymap,
+};
+
+static struct pm8xxx_keypad_platform_data keypad_data = {
+    .input_name             = "keypad_8960",
+    .input_phys_device      = "keypad_8960/input0",
+    .num_rows               = 1,
+    .num_cols               = 5,
+    .rows_gpio_start	= PM8921_GPIO_PM_TO_SYS(9),
+    .cols_gpio_start	= PM8921_GPIO_PM_TO_SYS(1),
+    .debounce_ms            = 15,
+    .scan_delay_ms          = 32,
+    .row_hold_ns            = 91500,
+    .wakeup                 = 1,
+    .keymap_data            = &keymap_data,
+};
+
+#else /* QCOM Original */
 
 static const unsigned int keymap[] = {
 	KEY(0, 0, KEY_VOLUMEUP),
@@ -271,6 +607,7 @@ static struct pm8xxx_keypad_platform_data keypad_data = {
 	.wakeup                 = 1,
 	.keymap_data            = &keymap_data,
 };
+#endif /* mirinae added 20111214  End*/
 
 static const unsigned int keymap_sim[] = {
 	KEY(0, 0, KEY_7),
@@ -415,6 +752,179 @@ static int pm8921_therm_mitigation[] = {
 #define MAX_VOLTAGE_MV		4200
 #define CHG_TERM_MA		100
 static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
+#if defined(CONFIG_PANTECH_CHARGER)    
+#if defined(CONFIG_MACH_MSM8960_STARQ)
+    .safety_time		= 600,	
+    .update_time		= 20000,
+    .max_voltage		= 4200,
+    .min_voltage	= 3600,
+    .resume_voltage_delta	= 50,
+    .term_current		= 50,
+    .cool_temp		= 0,
+    .warm_temp		= 45,
+    .temp_check_period	= 1,
+    .max_bat_chg_current	= 900,
+    .cool_bat_chg_current	= 850,
+    .warm_bat_chg_current	= 850,
+    .cool_bat_voltage	= 4000,
+    .warm_bat_voltage	= 4000,
+    .thermal_mitigation	= pm8921_therm_mitigation,
+    .thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+    .rconn_mohm		= 18,
+    //.trkl_voltage   = 2800,
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    .cold_thr = 1,
+    .hot_thr = 0,
+#elif defined (CONFIG_MACH_MSM8960_EF45K)
+    .safety_time		= 600,	
+    .update_time		= 20000,
+    .max_voltage		= 4350,
+    .min_voltage	= 3600,
+    .resume_voltage_delta	= 50,
+    .term_current         = 50,
+    .cool_temp		= 0,
+    .warm_temp		= 45,
+    .temp_check_period	= 1,
+    .max_bat_chg_current	= 900,
+    .cool_bat_chg_current	= 400,
+    .warm_bat_chg_current	= 400,
+    .cool_bat_voltage	= 4350,
+    .warm_bat_voltage	= 4350,	
+    .thermal_mitigation	= pm8921_therm_mitigation,
+    .thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+    .rconn_mohm		= 18,
+    //.trkl_voltage   = 2800,
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    .cold_thr = 1,
+    .hot_thr = 0,
+#elif defined (CONFIG_MACH_MSM8960_EF47S)
+    .safety_time		= 600,	
+    .update_time		= 20000,
+    .max_voltage		= 4350,
+    .min_voltage	= 3600,
+    .resume_voltage_delta	= 50,
+    .term_current         = 50,
+    .cool_temp		= 0,
+    .warm_temp		= 45,
+    .temp_check_period	= 1,
+    .max_bat_chg_current	= 900,
+    .cool_bat_chg_current	= 400,
+    .warm_bat_chg_current	= 400,
+    .cool_bat_voltage	= 4350,
+    .warm_bat_voltage	= 4350,	
+    .thermal_mitigation	= pm8921_therm_mitigation,
+    .thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+    .rconn_mohm		= 18,
+    //.trkl_voltage   = 2800,
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    .cold_thr = 1,
+    .hot_thr = 0,
+#elif defined (CONFIG_MACH_MSM8960_EF46L)
+    .safety_time		= 600,	
+    .update_time		= 20000,
+    .max_voltage		= 4350,
+    .min_voltage	= 3600,
+    .resume_voltage_delta	= 50,
+    .term_current         = 50,
+    .cool_temp		= 0,
+    .warm_temp		= 45,
+    .temp_check_period	= 1,
+    .max_bat_chg_current	= 900,
+    .cool_bat_chg_current	= 400,
+    .warm_bat_chg_current	= 400,
+    .cool_bat_voltage	= 4350,
+    .warm_bat_voltage	= 4350,	
+    .thermal_mitigation	= pm8921_therm_mitigation,
+    .thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+    .rconn_mohm		= 18,
+    //.trkl_voltage   = 2800,
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    .cold_thr = 1,
+    .hot_thr = 0,
+#elif defined (CONFIG_MACH_MSM8960_OSCAR)
+    .safety_time = 512,	
+    .update_time = 20000,
+    .max_voltage = 4360,
+    .min_voltage = 3600,
+    .resume_voltage_delta	= 100,
+    .term_current = 50,
+    .cool_temp = 0,
+    .warm_temp = 47,
+    .temp_check_period = 1,
+    .max_bat_chg_current = 900,
+    .cool_bat_chg_current	= 850,
+    .warm_bat_chg_current	= 850,
+    .cool_bat_voltage	= 4000,
+    .warm_bat_voltage	= 4000,	
+    .thermal_mitigation = pm8921_therm_mitigation,
+    .thermal_levels	= ARRAY_SIZE(pm8921_therm_mitigation),
+    .rconn_mohm		= 18,
+    //.trkl_voltage = 2800,
+    .weak_voltage = 3200,
+    .trkl_current = 50,
+    //.weak_current = 325,
+    .cold_thr = 0,
+    .hot_thr = 1,
+#elif defined (CONFIG_MACH_MSM8960_VEGAPVW) 
+	.safety_time		= 600,	
+	.update_time		= 20000,
+	.max_voltage		= 4200,
+	.min_voltage	= 3600,
+	.resume_voltage_delta	= 50,
+	.term_current		= 50,
+	.cool_temp		= 0,
+	.warm_temp		= 45,
+	.temp_check_period	= 1,
+	.max_bat_chg_current	= 900,
+	.cool_bat_chg_current	= 400,
+	.warm_bat_chg_current	= 400,
+	.cool_bat_voltage	= 4200,
+	.warm_bat_voltage	= 4200,
+	.thermal_mitigation	= pm8921_therm_mitigation,
+	.thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
+	.rconn_mohm		= 18,
+    //.trkl_voltage   = 2800,ruf
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    //.cold_thr = 0,
+    //.hot_thr = 1,
+    .cold_thr = 1,
+    .hot_thr = 0,
+#else
+    .safety_time		= 600,	
+    .update_time		= 20000,
+    .max_voltage		= 4200,
+    .min_voltage	= 3600,
+    .resume_voltage_delta	= 50,	
+    .term_current		= 50,	
+    .cool_temp		= 0,
+    .warm_temp		= 45,
+    .temp_check_period	= 1,
+    .max_bat_chg_current	= 900,
+    .cool_bat_chg_current	= 400,
+    .warm_bat_chg_current	= 400,
+    .cool_bat_voltage	= 4200,
+    .warm_bat_voltage	= 4200,
+    .thermal_mitigation	= pm8921_therm_mitigation,
+    .thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),	
+    .rconn_mohm		= 18,	
+    //.trkl_voltage   = 2800,
+    .weak_voltage = 3200,
+    .trkl_current  = 50,
+    //.weak_current = 325,
+    .cold_thr = 0,
+    .hot_thr = 1,
+#endif //defined(CONFIG_MACH_MSM8960_STARQ)
+#else //defined(CONFIG_PANTECH_CHARGER)
 	.safety_time		= 180,
 	.update_time		= 60000,
 	.max_voltage		= MAX_VOLTAGE_MV,
@@ -434,6 +944,7 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.thermal_mitigation	= pm8921_therm_mitigation,
 	.thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
 	.rconn_mohm		= 18,
+#endif //defined(CONFIG_PANTECH_CHARGER)
 };
 
 static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
@@ -442,6 +953,14 @@ static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
 
 static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.battery_type			= BATT_UNKNOWN,
+#ifdef CONFIG_PANTECH_BMS
+    .r_sense		= 10,
+    .i_test			= 2000,
+    .v_failure		= 3200,
+    .calib_delay_ms		= 600000,
+    .max_voltage_uv		= MAX_VOLTAGE_MV * 1000,
+    .rconn_mohm		= 30,
+#else
 	.r_sense			= 10,
 	.v_cutoff			= 3400,
 	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
@@ -449,6 +968,7 @@ static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
 	.shutdown_soc_valid_limit	= 20,
 	.adjust_soc_low_threshold	= 25,
 	.chg_term_ua			= CHG_TERM_MA * 1000,
+#endif
 };
 
 #define	PM8921_LC_LED_MAX_CURRENT	4	/* I = 4mA */
@@ -509,6 +1029,16 @@ static struct pm8xxx_led_platform_data pm8xxx_leds_pdata_liquid = {
 };
 
 static struct led_info pm8921_led_info[] = {
+#if defined (CONFIG_MACH_MSM8960_STARQ)  // p11223_LED
+    [0] = {
+        .name			= "button-backlight",
+        .default_trigger	= "default-on",
+    },
+    [1] = {
+        .name			= "keyboard-backlight",
+        .default_trigger	= "default-on",
+    },
+#else
 	[0] = {
 		.name			= "led:battery_charging",
 		.default_trigger	= "battery-charging",
@@ -517,6 +1047,7 @@ static struct led_info pm8921_led_info[] = {
 		.name			= "led:battery_full",
 		.default_trigger	= "battery-full",
 	},
+#endif
 };
 
 static struct led_platform_data pm8921_led_core_pdata = {
@@ -524,6 +1055,7 @@ static struct led_platform_data pm8921_led_core_pdata = {
 	.leds = pm8921_led_info,
 };
 
+#ifndef CONFIG_MACH_MSM8960_STARQ   // p11223_LED
 static int pm8921_led0_pwm_duty_pcts[56] = {
 		1, 4, 8, 12, 16, 20, 24, 28, 32, 36,
 		40, 44, 46, 52, 56, 60, 64, 68, 72, 76,
@@ -542,10 +1074,23 @@ static struct pm8xxx_pwm_duty_cycles pm8921_led0_pwm_duty_cycles = {
 	.duty_pcts = (int *)&pm8921_led0_pwm_duty_pcts,
 	.num_duty_pcts = ARRAY_SIZE(pm8921_led0_pwm_duty_pcts),
 	.duty_ms = PM8XXX_LED_PWM_DUTY_MS,
-	.start_idx = 1,
+	.start_idx = 1, // In ICS start_idx = 0
 };
+#endif
 
 static struct pm8xxx_led_config pm8921_led_configs[] = {
+#if defined (CONFIG_MACH_MSM8960_STARQ)   // p11223_LED
+    [0] = {
+        .id = PM8XXX_ID_LED_0,
+        .mode = PM8XXX_LED_MODE_MANUAL,
+        .max_current = PM8921_LC_LED_MAX_CURRENT,
+    },
+    [1] = {
+        .id = PM8XXX_ID_LED_KB_LIGHT,
+        .mode = PM8XXX_LED_MODE_MANUAL,
+        .max_current = PM8921_LC_LED_MAX_CURRENT,
+    },
+#else
 	[0] = {
 		.id = PM8XXX_ID_LED_0,
 		.mode = PM8XXX_LED_MODE_PWM2,
@@ -561,6 +1106,7 @@ static struct pm8xxx_led_config pm8921_led_configs[] = {
 		.pwm_channel = 4,
 		.pwm_period_us = PM8XXX_LED_PWM_PERIOD,
 	},
+#endif
 };
 
 static struct pm8xxx_led_platform_data pm8xxx_leds_pdata = {
@@ -598,8 +1144,12 @@ static struct pm8921_platform_data pm8921_platform_data __devinitdata = {
 	.bms_pdata		= &pm8921_bms_pdata,
 	.adc_pdata		= &pm8xxx_adc_pdata,
 	.leds_pdata		= &pm8xxx_leds_pdata,
+    .vibrator_pdata	= &pm8xxx_vib_pdata,   // mirinae
 	.ccadc_pdata		= &pm8xxx_ccadc_pdata,
 	.pwm_pdata		= &pm8xxx_pwm_pdata,
+#if defined(CONFIG_PANTECH_PMIC)
+    .pwrkey_emulation_pdata = &pm8xxx_pwrkey_emulation_pdata,
+#endif
 };
 
 static struct msm_ssbi_platform_data msm8960_ssbi_pm8921_pdata __devinitdata = {

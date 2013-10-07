@@ -34,6 +34,12 @@
 #include <mach/scm.h>
 #include "msm_watchdog.h"
 #include "timer.h"
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+#include "sky_sys_reset.h"
+#endif
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+#include "../../../drivers/video/msm/mipi_samsung_octa.h"
+#endif
 
 #define WDT0_RST	0x38
 #define WDT0_EN		0x40
@@ -53,6 +59,9 @@ void *restart_reason;
 int pmic_reset_irq;
 static void __iomem *msm_tmr0_base;
 
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+#define NORMAL_RESET_MAGIC_NUM 0xbaabcddc
+#endif
 #ifdef CONFIG_MSM_DLOAD_MODE
 static int in_panic;
 static void *dload_mode_addr;
@@ -108,6 +117,28 @@ static int dload_set(const char *val, struct kernel_param *kp)
 #define set_dload_mode(x) do {} while (0)
 #endif
 
+#if defined(CONFIG_PANTECH_PMIC_RESET_REASON)
+static void set_force_online_mode(void)
+{
+    if (dload_mode_addr) {
+        __raw_writel(0x34070757, dload_mode_addr);
+        __raw_writel(0x27530757,
+               dload_mode_addr + sizeof(unsigned int));
+        mb();
+    }
+}
+
+static void set_force_offline_mode(void)
+{
+    if (dload_mode_addr) {
+        __raw_writel(0x27530757, dload_mode_addr);
+        __raw_writel(0x34070757,
+               dload_mode_addr + sizeof(unsigned int));
+        mb();
+    }
+}
+#endif 
+
 void msm_set_restart_mode(int mode)
 {
 	restart_mode = mode;
@@ -130,9 +161,18 @@ static void __msm_power_off(int lower_pshold)
 	return;
 }
 
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+extern void oscar_lcd_poweroff(void);
+extern struct Lcd_State_Info Oscar_State;
+#endif
 static void msm_power_off(void)
 {
 	/* MSM initiated power off, lower ps_hold */
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+    /* this function is for OLED panel */
+    /*LS2team jiseunghwa[120223]*/
+    oscar_lcd_poweroff();
+#endif
 	__msm_power_off(1);
 }
 
@@ -176,6 +216,10 @@ static irqreturn_t resout_irq_handler(int irq, void *dev_id)
 		;
 	return IRQ_HANDLED;
 }
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+int sky_reset_reason=SYS_RESET_REASON_UNKNOWN;
+static int sky_backlight_off = 0;
+#endif
 
 void msm_restart(char mode, const char *cmd)
 {
@@ -196,6 +240,23 @@ void msm_restart(char mode, const char *cmd)
 	if (!download_mode)
 		set_dload_mode(0);
 #endif
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+    /* this function is for OLED panel */
+    /*LS2team jiseunghwa[120223]*/
+
+    if(Oscar_State.chargerFlag == true)
+        oscar_lcd_poweroff();
+#endif
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING 
+    sky_backlight_off = sky_sys_rst_is_backlight_off();
+#endif
+#if defined(CONFIG_PANTECH_PMIC)
+    if (in_panic == 0)       //chjeon20120213@LS1 chg
+        set_force_online_mode();
+
+    if (mode == 0xC9)
+        set_force_offline_mode();
+#endif 
 
 	printk(KERN_NOTICE "Going down for restart now\n");
 
@@ -210,10 +271,40 @@ void msm_restart(char mode, const char *cmd)
 			unsigned long code;
 			code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;
 			__raw_writel(0x6f656d00 | code, restart_reason);
+#ifdef CONFIG_PANTECH_FS_AUTO_REPAIR
+        } else if (!strncmp(cmd, "autorepair", 10)){
+            __raw_writel(0x776655EA, restart_reason);
+#endif /* CONFIG_PANTECH_FS_AUTO_REPAIR */
 		} else {
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+            if(in_panic){//sky_reset_reason
+                if(sky_backlight_off == 0){
+                    sky_reset_reason |=
+                        SYS_RESET_BACKLIGHT_OFF_FLAG;
+                }
+                writel(sky_reset_reason, restart_reason);
+            } else{
+                __raw_writel(0x77665501, restart_reason);
+            }
+#else /* CONFIG_PANTECH_ERR_CRASH_LOGGING */
 			__raw_writel(0x77665501, restart_reason);
+#endif /* CONFIG_PANTECH_ERR_CRASH_LOGGING */
 		}
 	}
+#if defined(CONFIG_PANTECH_ERR_CRASH_LOGGING) || defined(CONFIG_PANTECH_WDOG_WORKAROUND)
+	else {
+        if(in_panic) {
+            if(sky_backlight_off == 0)
+            {
+                sky_reset_reason |= SYS_RESET_BACKLIGHT_OFF_FLAG; 
+            }
+            writel(sky_reset_reason, restart_reason);
+        } else {
+            __raw_writel(0x77665501, restart_reason);
+        }
+	}
+        writel(NORMAL_RESET_MAGIC_NUM, restart_reason+4);
+#endif /* CONFIG_PANTECH_WDOG_WORKAROUND */
 
 	__raw_writel(0, msm_tmr0_base + WDT0_EN);
 	if (!(machine_is_msm8x60_fusion() || machine_is_msm8x60_fusn_ffa())) {
@@ -232,10 +323,29 @@ void msm_restart(char mode, const char *cmd)
 	printk(KERN_ERR "Restarting has failed\n");
 }
 
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING 
+void pantech_set_restart_reason(void)
+{
+    sky_backlight_off = sky_sys_rst_is_backlight_off();
+
+    if(in_panic)
+    {//sky_reset_reason
+        if(sky_backlight_off == 0)
+        {
+            sky_reset_reason |= SYS_RESET_BACKLIGHT_OFF_FLAG; 
+        }
+        writel(sky_reset_reason, restart_reason);
+    }
+}
+#endif
+
 static int __init msm_pmic_restart_init(void)
 {
 	int rc;
 
+#if defined(CONFIG_PANTECH_ERR_CRASH_LOGGING)
+    __raw_writel(SYS_RESET_REASON_ABNORMAL, restart_reason);
+#endif
 	if (pmic_reset_irq != 0) {
 		rc = request_any_context_irq(pmic_reset_irq,
 					resout_irq_handler, IRQF_TRIGGER_HIGH,

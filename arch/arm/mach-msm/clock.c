@@ -517,9 +517,17 @@ static int __init clock_late_init(void)
 
 	pr_info("%s: Removing enables held for handed-off clocks\n", __func__);
 	list_for_each_entry_safe(h, h_temp, &handoff_list, list) {
+#if 0//defined(CONFIG_F_SKYDISP_CONT_SPLASH_DISP) /* p13447 shinjg for cont splash display */
+		if(strcmp(h->clk->dbg_name,"lut_mdp_clk"))
+		{
+//			printk("[shinbrad:%s] -> Clkname: %s unset ... \n",__func__,h->clk->dbg_name);
+#endif
 		clk_disable_unprepare(h->clk);
 		list_del(&h->list);
 		kfree(h);
+#if 0//defined(CONFIG_F_SKYDISP_CONT_SPLASH_DISP)
+	}
+#endif
 	}
 
 	if (clk_init_data->late_init)

@@ -355,6 +355,9 @@ struct hci_conn {
 	__u8		auth;
 	void		*smp_conn;
 	struct timer_list smp_timer;
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ++++
+	__u8            conn_valid;
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ----
 
 
 	void (*connect_cfm_cb)	(struct hci_conn *conn, u8 status);

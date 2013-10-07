@@ -526,6 +526,9 @@ static int msm_mctl_open(struct msm_cam_media_controller *p_mctl,
 	if (!p_mctl->opencnt) {
 		struct msm_sensor_csi_info csi_info;
 		uint32_t csid_version;
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK		
+		wake_lock(&p_mctl->wake_lock);
+#endif		
 		pm_qos_update_request(&p_mctl->idle_pm_qos,
 			msm_cpuidle_get_deep_idle_latency());
 
@@ -672,6 +675,9 @@ act_power_up_failed:
 		pr_err("%s: sensor powerdown failed: %d\n", __func__, rc);
 sensor_sdev_failed:
 register_sdev_failed:
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK
+	wake_unlock(&p_mctl->wake_lock);
+#endif
 	pm_qos_update_request(&p_mctl->idle_pm_qos, PM_QOS_DEFAULT_VALUE);
 	mutex_unlock(&p_mctl->lock);
 	return rc;
@@ -728,6 +734,9 @@ static int msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 
 	v4l2_subdev_call(p_mctl->sensor_sdev, core, s_power, 0);
 
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK
+	wake_unlock(&p_mctl->wake_lock);
+#endif
 	pm_qos_update_request(&p_mctl->idle_pm_qos, PM_QOS_DEFAULT_VALUE);
 	return rc;
 }
@@ -812,6 +821,9 @@ int msm_mctl_init(struct msm_cam_v4l2_device *pcam)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK
+	wake_lock_init(&pmctl->wake_lock, WAKE_LOCK_SUSPEND, "msm_camera");
+#endif
 	pm_qos_add_request(&pmctl->idle_pm_qos, PM_QOS_CPU_DMA_LATENCY,
 		PM_QOS_DEFAULT_VALUE);
 	mutex_init(&pmctl->lock);
@@ -853,6 +865,9 @@ int msm_mctl_free(struct msm_cam_v4l2_device *pcam)
 	}
 
 	mutex_destroy(&pmctl->lock);
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK	
+	wake_lock_destroy(&pmctl->wake_lock);
+#endif
 	pm_qos_remove_request(&pmctl->idle_pm_qos);
 	msm_camera_free_mctl(pcam->mctl_handle);
 	return rc;

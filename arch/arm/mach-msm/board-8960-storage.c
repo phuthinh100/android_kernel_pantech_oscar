@@ -151,9 +151,15 @@ static struct msm_mmc_pad_pull sdc1_pad_pull_off_cfg[] = {
 
 /* SDC3 pad data */
 static struct msm_mmc_pad_drv sdc3_pad_drv_on_cfg[] = {
+#ifdef CONFIG_MACH_MSM8960_STARQ // 20120111 jylee for mmc crc error
+    {TLMM_HDRV_SDC3_CLK, GPIO_CFG_12MA /*GPIO_CFG_8MA*/},
+    {TLMM_HDRV_SDC3_CMD, GPIO_CFG_12MA /*GPIO_CFG_8MA*/},
+    {TLMM_HDRV_SDC3_DATA, GPIO_CFG_12MA /*GPIO_CFG_8MA*/}
+#else
 	{TLMM_HDRV_SDC3_CLK, GPIO_CFG_8MA},
 	{TLMM_HDRV_SDC3_CMD, GPIO_CFG_8MA},
 	{TLMM_HDRV_SDC3_DATA, GPIO_CFG_8MA}
+#endif
 };
 
 static struct msm_mmc_pad_drv sdc3_pad_drv_off_cfg[] = {

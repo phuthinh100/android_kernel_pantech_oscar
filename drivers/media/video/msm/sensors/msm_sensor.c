@@ -74,8 +74,10 @@ int32_t msm_sensor_write_res_settings(struct msm_sensor_ctrl_t *s_ctrl,
 	if (rc < 0)
 		return rc;
 
+#if 0 /*20130110, wisungho, color point���� ���۽� previewȭ���� snapshot���� ���� ���� ������ ���� ����. */
 	if (s_ctrl->func_tbl->sensor_adjust_frame_lines)
 		rc = s_ctrl->func_tbl->sensor_adjust_frame_lines(s_ctrl, res);
+#endif
 
 	return rc;
 }
@@ -143,9 +145,52 @@ void msm_sensor_group_hold_off(struct msm_sensor_ctrl_t *s_ctrl)
 int32_t msm_sensor_set_fps(struct msm_sensor_ctrl_t *s_ctrl,
 						struct fps_cfg *fps)
 {
+#if 0//wsyang_temp
+	uint16_t total_lines_per_frame;
+	int32_t rc = 0;
+	s_ctrl->fps_divider = fps->fps_div;
+
+	if (s_ctrl->curr_res != MSM_SENSOR_INVALID_RES) {
+		total_lines_per_frame = (uint16_t)
+			((s_ctrl->curr_frame_length_lines) *
+			s_ctrl->fps_divider/Q10);
+
+#if 1//def F_PANTECH_CAMERA_OV8820	
+	//if(strcmp(s_ctrl->sensordata->sensor_name, "ov8820") == 0) {
+	if(s_ctrl->sensor_id_info->sensor_id == OV8820_ID) {
+		
+		pr_err("%s: -- OV8820 : %d %d %d\n", __func__, total_lines_per_frame,s_ctrl->curr_frame_length_lines,s_ctrl->fps_divider);
+
+		////////////////////////////////////////////
+		//total_lines_per_frame = 2800;//0xE00; // It will be remove after patch.
+		////////////////////////////////////////////	
+		rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			0x380E, ((total_lines_per_frame & 0xFF00) >> 8),MSM_CAMERA_I2C_BYTE_DATA);
+
+		rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			0x380F, (total_lines_per_frame & 0x00FF),MSM_CAMERA_I2C_BYTE_DATA);
+		
+	}
+	else if(s_ctrl->sensor_id_info->sensor_id == S5K3H2_ID )
+	{
+		pr_err("%s: -- else : %d %d %d\n", __func__, total_lines_per_frame,s_ctrl->curr_frame_length_lines,s_ctrl->fps_divider);
+		rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			0x0340, total_lines_per_frame//2800
+			, MSM_CAMERA_I2C_WORD_DATA);
+	}
+	else
+#endif
+
+		rc = msm_camera_i2c_write(s_ctrl->sensor_i2c_client,
+			s_ctrl->sensor_output_reg_addr->frame_length_lines,
+			total_lines_per_frame, MSM_CAMERA_I2C_WORD_DATA);
+	}
+	return rc;
+#else
 	s_ctrl->fps_divider = fps->fps_div;
 
 	return 0;
+#endif
 }
 
 int32_t msm_sensor_write_exp_gain1(struct msm_sensor_ctrl_t *s_ctrl,
@@ -210,24 +255,24 @@ int32_t msm_sensor_setting1(struct msm_sensor_ctrl_t *s_ctrl,
 	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
 	msleep(30);
 	if (update_type == MSM_SENSOR_REG_INIT) {
-		CDBG("Register INIT\n");
+		pr_err("%s[F_PANTECH_CAMERA]Register INIT\n",__func__);
 		s_ctrl->curr_csi_params = NULL;
 		msm_sensor_enable_debugfs(s_ctrl);
 		msm_sensor_write_init_settings(s_ctrl);
 		csi_config = 0;
 	} else if (update_type == MSM_SENSOR_UPDATE_PERIODIC) {
-		CDBG("PERIODIC : %d\n", res);
+		pr_err("%s[F_PANTECH_CAMERA]PERIODIC : %d\n",__func__, res);
 		msm_sensor_write_conf_array(
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->msm_sensor_reg->mode_settings, res);
 		msleep(30);
 		if (!csi_config) {
 			s_ctrl->curr_csic_params = s_ctrl->csic_params[res];
-			CDBG("CSI config in progress\n");
+			pr_err("%s[F_PANTECH_CAMERA]CSI config in progress\n",__func__);
 			v4l2_subdev_notify(&s_ctrl->sensor_v4l2_subdev,
 				NOTIFY_CSIC_CFG,
 				s_ctrl->curr_csic_params);
-			CDBG("CSI config is done\n");
+			pr_err("%s[F_PANTECH_CAMERA]CSI config is done\n",__func__);
 			mb();
 			msleep(30);
 			csi_config = 1;
@@ -246,15 +291,18 @@ int32_t msm_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 {
 	int32_t rc = 0;
 
+    pr_err("%s:[F_PANTECH_CAMERA] %d, %d res=%d\n", __func__, __LINE__,update_type,res);
 	s_ctrl->func_tbl->sensor_stop_stream(s_ctrl);
 	msleep(30);
 	if (update_type == MSM_SENSOR_REG_INIT) {
 		s_ctrl->curr_csi_params = NULL;
+        pr_err("%s:[F_PANTECH_CAMERA] ==> MSM_SENSOR_REG_INIT  %d\n", __func__, update_type);        
 		msm_sensor_enable_debugfs(s_ctrl);
 		msm_sensor_write_init_settings(s_ctrl);
 	} else if (update_type == MSM_SENSOR_UPDATE_PERIODIC) {
 		msm_sensor_write_res_settings(s_ctrl, res);
 		if (s_ctrl->curr_csi_params != s_ctrl->csi_params[res]) {
+            pr_err("%s:[F_PANTECH_CAMERA] ==> MIPI setting  E %d\n", __func__, update_type);
 			s_ctrl->curr_csi_params = s_ctrl->csi_params[res];
 			s_ctrl->curr_csi_params->csid_params.lane_assign =
 				s_ctrl->sensordata->sensor_platform_info->
@@ -271,14 +319,16 @@ int32_t msm_sensor_setting(struct msm_sensor_ctrl_t *s_ctrl,
 				&s_ctrl->curr_csi_params->csiphy_params);
 			mb();
 			msleep(20);
+            pr_err("%s:[F_PANTECH_CAMERA] ==> MIPI setting  X %d\n", __func__, update_type);			
 		}
 
 		v4l2_subdev_notify(&s_ctrl->sensor_v4l2_subdev,
 			NOTIFY_PCLK_CHANGE, &s_ctrl->msm_sensor_reg->
 			output_settings[res].op_pixel_clk);
 		s_ctrl->func_tbl->sensor_start_stream(s_ctrl);
-		msleep(30);
+		msleep(150);//msleep(30);
 	}
+	pr_err("%s: %d x\n", __func__, __LINE__);
 	return rc;
 }
 
@@ -286,6 +336,7 @@ int32_t msm_sensor_set_sensor_mode(struct msm_sensor_ctrl_t *s_ctrl,
 	int mode, int res)
 {
 	int32_t rc = 0;
+    pr_err("%s:[F_PANTECH_CAMERA]  s_ctrl->curr_res:%d / res:%d\n", __func__, s_ctrl->curr_res,res);     
 	if (s_ctrl->curr_res != res) {
 		s_ctrl->curr_frame_length_lines =
 			s_ctrl->msm_sensor_reg->
@@ -295,13 +346,18 @@ int32_t msm_sensor_set_sensor_mode(struct msm_sensor_ctrl_t *s_ctrl,
 			s_ctrl->msm_sensor_reg->
 			output_settings[res].line_length_pclk;
 
+        pr_err("%s:[F_PANTECH_CAMERA]  s_ctrl->is_csic:%d s_ctrl->sensordata->csi_if:%d\n", __func__, s_ctrl->is_csic, s_ctrl->sensordata->csi_if); 
+
 		if (s_ctrl->is_csic ||
-			!s_ctrl->sensordata->csi_if)
+			!s_ctrl->sensordata->csi_if) {
+            pr_err("%s:[F_PANTECH_CAMERA]  sensor_csi_setting:%d\n", __func__, __LINE__);     			
 			rc = s_ctrl->func_tbl->sensor_csi_setting(s_ctrl,
 				MSM_SENSOR_UPDATE_PERIODIC, res);
-		else
+		} else {
+            pr_err("%s:[F_PANTECH_CAMERA]  sensor_setting:%d\n", __func__, __LINE__);     		
 			rc = s_ctrl->func_tbl->sensor_setting(s_ctrl,
 				MSM_SENSOR_UPDATE_PERIODIC, res);
+        }
 		if (rc < 0)
 			return rc;
 		s_ctrl->curr_res = res;
@@ -317,7 +373,7 @@ int32_t msm_sensor_mode_init(struct msm_sensor_ctrl_t *s_ctrl,
 	s_ctrl->fps_divider = Q10;
 	s_ctrl->cam_mode = MSM_SENSOR_MODE_INVALID;
 
-	CDBG("%s: %d\n", __func__, __LINE__);
+	pr_err("%s[F_PANTECH_CAMERA]: %d\n", __func__, __LINE__);
 	if (mode != s_ctrl->cam_mode) {
 		s_ctrl->curr_res = MSM_SENSOR_INVALID_RES;
 		s_ctrl->cam_mode = mode;
@@ -401,15 +457,30 @@ int32_t msm_sensor_get_csi_params(struct msm_sensor_ctrl_t *s_ctrl,
 	return 0;
 }
 
+#ifdef CONFIG_PANTECH_CAMERA
+struct sensor_cfg_data cdata;
+#endif
 int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 {
+#ifndef CONFIG_PANTECH_CAMERA
 	struct sensor_cfg_data cdata;
+#endif
 	long   rc = 0;
+#ifdef CONFIG_PANTECH_CAMERA
+    mutex_lock(s_ctrl->msm_sensor_mutex);
+    if (copy_from_user(&cdata,
+        (void *)argp,
+        sizeof(struct sensor_cfg_data))) {
+        mutex_unlock(s_ctrl->msm_sensor_mutex);
+        return -EFAULT;
+    }
+#else
 	if (copy_from_user(&cdata,
 		(void *)argp,
 		sizeof(struct sensor_cfg_data)))
 		return -EFAULT;
 	mutex_lock(s_ctrl->msm_sensor_mutex);
+#endif
 	CDBG("msm_sensor_config: cfgtype = %d\n",
 	cdata.cfgtype);
 		switch (cdata.cfgtype) {
@@ -457,6 +528,7 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			break;
 
 		case CFG_SET_MODE:
+            pr_err("%s:[F_PANTECH_CAMERA]  CFG_SET_MODE\n", __func__);     			            
 			if (s_ctrl->func_tbl->
 			sensor_set_sensor_mode == NULL) {
 				rc = -EFAULT;
@@ -470,6 +542,11 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 			break;
 
 		case CFG_SET_EFFECT:
+#ifdef CONFIG_PANTECH_CAMERA
+            if (s_ctrl->func_tbl->sensor_set_effect) {
+                    rc = s_ctrl->func_tbl->sensor_set_effect(s_ctrl, cdata.cfg.effect);
+            }
+#endif
 			break;
 
 		case CFG_SENSOR_INIT:
@@ -532,6 +609,145 @@ int32_t msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 				sizeof(struct sensor_cfg_data)))
 				rc = -EFAULT;
 			break;
+
+#ifdef CONFIG_PANTECH_CAMERA_TUNER
+        case CFG_SET_TUNER:
+            printk("%s CFG_SET_TUNER\n ",__func__);
+            rc = s_ctrl->func_tbl->sensor_set_tuner(cdata.cfg.tuner);
+            break;
+#endif
+
+#ifdef CONFIG_PANTECH_CAMERA
+        case CFG_SET_BRIGHTNESS:
+            if (s_ctrl->func_tbl->sensor_set_brightness) {
+                rc = s_ctrl->func_tbl->sensor_set_brightness(s_ctrl, cdata.cfg.brightness);
+            }
+            break;
+
+        case CFG_SET_EXPOSURE_MODE:
+            if (s_ctrl->func_tbl->sensor_set_exposure_mode) {
+                rc = s_ctrl->func_tbl->sensor_set_exposure_mode(s_ctrl, cdata.cfg.exposure);
+            }
+            break;
+
+        case CFG_SET_WB:
+            if (s_ctrl->func_tbl->sensor_set_wb) {
+                rc = s_ctrl->func_tbl->sensor_set_wb(s_ctrl, cdata.cfg.whitebalance);
+            }
+            break;
+
+        case CFG_SET_PREVIEW_FPS:
+            if (s_ctrl->func_tbl->sensor_set_preview_fps) {
+                rc = s_ctrl->func_tbl->sensor_set_preview_fps(s_ctrl, cdata.cfg.preview_fps);
+            }
+            break;
+
+        case CFG_AUTO_FOCUS:
+            if (s_ctrl->func_tbl->sensor_set_auto_focus) {
+                rc = s_ctrl->func_tbl->sensor_set_auto_focus(s_ctrl, cdata.cfg.focus.dir);
+            }
+            break;
+
+        case CFG_SET_SCENE_MODE:
+            if (s_ctrl->func_tbl->sensor_set_scene_mode) {
+                rc = s_ctrl->func_tbl->sensor_set_scene_mode(s_ctrl, cdata.cfg.scene_mode);
+            }
+            break;
+
+        case CFG_SET_REFLECT:
+            if (s_ctrl->func_tbl->sensor_set_reflect) {
+                rc = s_ctrl->func_tbl->sensor_set_reflect(s_ctrl, cdata.cfg.reflect);
+            }
+            break;
+
+        case CFG_SET_ANTIBANDING:
+            if (s_ctrl->func_tbl->sensor_set_antibanding) {
+                rc = s_ctrl->func_tbl->sensor_set_antibanding(s_ctrl, cdata.cfg.antibanding);
+            }
+            break;
+        case CFG_SET_ANTISHAKE:
+            if (s_ctrl->func_tbl->sensor_set_antishake) {
+                rc = s_ctrl->func_tbl->sensor_set_antishake(s_ctrl, cdata.cfg.antishake);
+            }
+            break;
+
+        case CFG_SET_LED_MODE:
+            if (s_ctrl->func_tbl->sensor_set_led_mode) {
+                rc = s_ctrl->func_tbl->sensor_set_led_mode(s_ctrl, cdata.cfg.led_mode);
+            }
+            break;
+
+        case CFG_SET_AF_CHECK:
+            if (s_ctrl->func_tbl->sensor_check_af) {
+                rc = s_ctrl->func_tbl->sensor_check_af(s_ctrl, cdata.cfg.focus.dir);
+            }
+            break;
+
+        case CFG_SET_CONTINUOUS_AF:
+            if (s_ctrl->func_tbl->sensor_set_coninuous_af) {
+                rc = s_ctrl->func_tbl->sensor_set_coninuous_af(s_ctrl, cdata.cfg.continuous_af);
+            }
+            break;
+
+        case CFG_SET_FOCUS_RECT:
+            if (s_ctrl->func_tbl->sensor_set_focus_rect) {
+                rc = s_ctrl->func_tbl->sensor_set_focus_rect(s_ctrl, cdata.cfg.focus_rect, (int8_t *)cdata.frame_info);
+            }
+            break;
+        case CFG_SET_HDR:
+            if (s_ctrl->func_tbl->sensor_set_hdr) {
+                rc = s_ctrl->func_tbl->sensor_set_hdr(s_ctrl);
+            }
+            break;
+
+        case CFG_SET_METERING_AREA:
+            if (s_ctrl->func_tbl->sensor_set_metering_area) {
+                rc = s_ctrl->func_tbl->sensor_set_metering_area(s_ctrl, cdata.cfg.focus_rect, (int8_t *)cdata.frame_info);
+            }
+            break;
+
+        case CFG_SET_OJT:
+            if (s_ctrl->func_tbl->sensor_set_ojt_ctrl) {
+                rc = s_ctrl->func_tbl->sensor_set_ojt_ctrl(s_ctrl, cdata.cfg.ojt);
+            }
+            break;
+
+#if 1 //def F_PANTECH_CAMERA_FIX_CFG_AE_AWB_LOCK
+        case CFG_SET_AEC_LOCK:
+            if (s_ctrl->func_tbl->sensor_set_aec_lock) {
+                rc = s_ctrl->func_tbl->sensor_set_aec_lock(s_ctrl, cdata.cfg.is_lock);
+            }
+            break;
+
+        case CFG_SET_AWB_LOCK:
+            if (s_ctrl->func_tbl->sensor_set_awb_lock) {
+                rc = s_ctrl->func_tbl->sensor_set_awb_lock(s_ctrl, cdata.cfg.is_lock);
+            }
+            break;
+#endif
+
+       case CFG_GET_FRAME_INFO:
+            if (s_ctrl->func_tbl->sensor_get_frame_info) {
+                rc = s_ctrl->func_tbl->sensor_get_frame_info(s_ctrl, argp, (int8_t *)cdata.frame_info);
+
+                if(copy_to_user((void *)argp,
+                		&cdata,
+                		sizeof(cdata)))
+                		return -EFAULT;
+            }
+            break;
+
+        case CFG_GET_CALIB_DATA:
+             if (s_ctrl->func_tbl->sensor_get_eeprom_data == NULL) break;
+             rc = s_ctrl->func_tbl->sensor_get_eeprom_data(s_ctrl, &cdata);
+             if (rc < 0)
+             break;
+             if (copy_to_user((void *)argp,
+                    &cdata,
+                    sizeof(cdata)))
+                    rc = -EFAULT;
+             break;
+#endif
 
 		default:
 			rc = -EFAULT;
@@ -604,12 +820,13 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		goto enable_vreg_failed;
 	}
 
+#ifndef CONFIG_PANTECH_CAMERA
 	rc = msm_camera_config_gpio_table(data, 1);
 	if (rc < 0) {
 		pr_err("%s: config gpio failed\n", __func__);
 		goto config_gpio_failed;
 	}
-
+#endif
 	if (s_ctrl->clk_rate != 0)
 		cam_clk_info->clk_rate = s_ctrl->clk_rate;
 
@@ -631,8 +848,10 @@ int32_t msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	return rc;
 
 enable_clk_failed:
+#ifndef CONFIG_PANTECH_CAMERA
 		msm_camera_config_gpio_table(data, 0);
 config_gpio_failed:
+#endif
 	msm_camera_enable_vreg(&s_ctrl->sensor_i2c_client->client->dev,
 			s_ctrl->sensordata->sensor_platform_info->cam_vreg,
 			s_ctrl->sensordata->sensor_platform_info->num_vreg,
@@ -663,7 +882,9 @@ int32_t msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 		data->sensor_platform_info->ext_power_ctrl(0);
 	msm_cam_clk_enable(&s_ctrl->sensor_i2c_client->client->dev,
 		cam_clk_info, &s_ctrl->cam_clk, ARRAY_SIZE(cam_clk_info), 0);
+#ifndef CONFIG_PANTECH_CAMERA
 	msm_camera_config_gpio_table(data, 0);
+#endif
 	msm_camera_enable_vreg(&s_ctrl->sensor_i2c_client->client->dev,
 		s_ctrl->sensordata->sensor_platform_info->cam_vreg,
 		s_ctrl->sensordata->sensor_platform_info->num_vreg,
@@ -681,10 +902,32 @@ int32_t msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int32_t rc = 0;
 	uint16_t chipid = 0;
+
+#ifdef CONFIG_PANTECH_CAMERA
+	if(s_ctrl->sensor_id_info->sensor_id == 0)
+		return 0;
+#endif	
+
+#if 1//def F_PANTECH_CAMERA_OV8820	
+	//if(strcmp(s_ctrl->sensordata->sensor_name, "ov8820") == 0) {
+	if(s_ctrl->sensor_id_info->sensor_id == OV8820_ID || s_ctrl->sensor_id_info->sensor_id == YACD5C1SBDBC_ID)
+	{
+	rc = msm_camera_i2c_read(
+			s_ctrl->sensor_i2c_client,
+			s_ctrl->sensor_id_info->sensor_id_reg_addr, &chipid,
+			MSM_CAMERA_I2C_BYTE_DATA);
+	}    
+	else {
+#endif		
 	rc = msm_camera_i2c_read(
 			s_ctrl->sensor_i2c_client,
 			s_ctrl->sensor_id_info->sensor_id_reg_addr, &chipid,
 			MSM_CAMERA_I2C_WORD_DATA);
+#if 1//def F_PANTECH_CAMERA_OV8820	
+	pr_err("%s: addr = %d, chipid = %d\n",__func__,s_ctrl->sensor_id_info->sensor_id_reg_addr,chipid);
+	}
+	//if(s_ctrl->sensor_id_info->sensor_id == 0x382B) return 0;
+#endif	
 	if (rc < 0) {
 		pr_err("%s: %s: read id failed\n", __func__,
 			s_ctrl->sensordata->sensor_name);

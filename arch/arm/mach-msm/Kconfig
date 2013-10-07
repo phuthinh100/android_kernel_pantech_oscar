@@ -820,6 +820,96 @@ config MACH_MSM9615_MTP
 	help
 	  Support for the Qualcomm MSM9615 MTP device.
 
+config MACH_MSM8960_SVLTE
+	depends on ARCH_MSM8960
+	bool "MSM8960 SVLTE"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 SVLTE device.
+
+config MACH_MSM8960_CHEETAH
+	depends on ARCH_MSM8960
+	bool "MSM8960 CHEETAH"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 CHEETAH device.
+
+config MACH_MSM8960_STARQ
+	depends on ARCH_MSM8960
+	bool "MSM8960 STARQ"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 STARQ device.
+
+config MACH_MSM8960_EF46L
+	depends on ARCH_MSM8960
+	bool "MSM8960 EF46L"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 EF46L device.
+
+config MACH_MSM8960_CSFB
+	depends on ARCH_MSM8960
+	bool "MSM8960 CSFB"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 CSFB device.
+
+config MACH_MSM8960_ZEPPLIN
+	depends on ARCH_MSM8960
+	bool "MSM8960 ZEPPLIN"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 ZEPPLIN device.
+
+config MACH_MSM8960_EF45K
+	depends on ARCH_MSM8960
+	bool "MSM8960 EF45K"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 EF45K device.
+
+config MACH_MSM8960_EF47S
+	depends on ARCH_MSM8960
+	bool "MSM8960 EF47S"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 EF47S device.
+
+config MACH_MSM8960_RACERJ
+	depends on ARCH_MSM8960
+	bool "MSM8960 RACERJ"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 RACERJ device.
+
+config MACH_MSM8960_VEGAPVW
+	depends on ARCH_MSM8960
+	bool "MSM8960 VEGAPVW"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 VEGAPVW device.
+
+config MACH_MSM8960_OSCAR
+	depends on ARCH_MSM8960
+	bool "MSM8960 OSCAR"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 OSCAR device.	  
+	  
+config MACH_MSM8960_VEGAPKDDI
+	depends on ARCH_MSM8960
+	bool "MSM8960 VEGAPKDDI"
+	select CUST_PANTECH_H
+	help
+	  Support for the Qualcomm MSM8960 VEGAPKDDI device.	  
+	  
+config CUST_PANTECH_H
+	bool
+
+if CUST_PANTECH_H
+source "arch/arm/mach-msm/cust/Kconfig"
+endif
 config MSM_USE_TSIF1
 	depends on ARCH_MSM8X60
 	bool "MSM8x60 use TSIF1"

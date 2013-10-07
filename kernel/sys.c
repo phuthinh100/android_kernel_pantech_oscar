@@ -362,13 +362,25 @@ EXPORT_SYMBOL(unregister_reboot_notifier);
  *	Shutdown everything and perform a clean reboot.
  *	This is not safe to call in interrupt context.
  */
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+extern void oscar_lcd_poweroff(void);
+#endif
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
-	if (!cmd)
+	if (!cmd) {
 		printk(KERN_EMERG "Restarting system.\n");
-	else
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+        oscar_lcd_poweroff();
+#endif
+    } else {
 		printk(KERN_EMERG "Restarting system with command '%s'.\n", cmd);
+#ifdef CONFIG_MACH_MSM8960_OSCAR
+        if(strcmp(cmd,"recovery") == 0){
+            oscar_lcd_poweroff();
+        }
+#endif
+    }
 	kmsg_dump(KMSG_DUMP_RESTART);
 	machine_restart(cmd);
 }
@@ -415,7 +427,9 @@ void kernel_power_off(void)
 	machine_power_off();
 }
 EXPORT_SYMBOL_GPL(kernel_power_off);
-
+#if defined(CONFIG_PANTECH_LCD_POWEROFFSEQ_ON_PHONEOFF) 
+extern void msm_fb_panel_power_off(void);
+#endif
 static DEFINE_MUTEX(reboot_mutex);
 
 /*
@@ -452,6 +466,9 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	ret = reboot_pid_ns(task_active_pid_ns(current), cmd);
 	if (ret)
 		return ret;
+#if defined(CONFIG_PANTECH_LCD_POWEROFFSEQ_ON_PHONEOFF) 
+    msm_fb_panel_power_off();
+#endif
 
 	/* Instead of trying to make the power_off code look like
 	 * halt when pm_power_off is not set do it the easy way.
@@ -462,6 +479,11 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	mutex_lock(&reboot_mutex);
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
+#if defined(PANTECH_ERR_CRASH_LOGGING ) || defined(CONFIG_PANTECH_EXT4_RO_REMOUNT_ON_EMERGENCY_RESET)
+        printk("emergency_sync() and emergency_remount() - LINUX_REBOOT_CMD_RESTART.\n");  
+        emergency_sync();  
+        emergency_remount();  
+#endif
 		kernel_restart(NULL);
 		break;
 
@@ -474,11 +496,21 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		break;
 
 	case LINUX_REBOOT_CMD_HALT:
+#if defined(PANTECH_ERR_CRASH_LOGGING ) || defined(CONFIG_PANTECH_EXT4_RO_REMOUNT_ON_EMERGENCY_RESET)
+        printk("emergency_sync() and emergency_remount() - LINUX_REBOOT_CMD_HALT.\n");  
+        emergency_sync();
+        emergency_remount();
+#endif
 		kernel_halt();
 		do_exit(0);
 		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
+#if defined(PANTECH_ERR_CRASH_LOGGING ) || defined(CONFIG_PANTECH_EXT4_RO_REMOUNT_ON_EMERGENCY_RESET)
+        printk("emergency_sync() and emergency_remount() - LINUX_REBOOT_CMD_POWER_OFF.\n");  
+        emergency_sync();
+        emergency_remount();
+#endif
 		kernel_power_off();
 		do_exit(0);
 		break;
@@ -489,6 +521,11 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 			break;
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
+#if defined(PANTECH_ERR_CRASH_LOGGING ) || defined(CONFIG_PANTECH_EXT4_RO_REMOUNT_ON_EMERGENCY_RESET)
+        printk("emergency_sync() and emergency_remount() - LINUX_REBOOT_CMD_RESTART2.\n");  
+        emergency_sync();
+        emergency_remount();
+#endif
 
 		kernel_restart(buffer);
 		break;
@@ -1198,7 +1235,7 @@ static int override_release(char __user *release, size_t len)
 			rest++;
 		}
 		v = ((LINUX_VERSION_CODE >> 8) & 0xff) + 40;
-		copy = min(sizeof(buf), max_t(size_t, 1, len));
+		copy = clamp_t(size_t, len, 1, sizeof(buf));
 		copy = scnprintf(buf, copy, "2.6.%u%s", v, rest);
 		ret = copy_to_user(release, buf, copy + 1);
 	}

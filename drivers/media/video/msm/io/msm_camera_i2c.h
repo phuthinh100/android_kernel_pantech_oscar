@@ -48,6 +48,9 @@ enum msm_camera_i2c_data_type {
 enum msm_camera_i2c_cmd_type {
 	MSM_CAMERA_I2C_CMD_WRITE,
 	MSM_CAMERA_I2C_CMD_POLL,
+#ifdef CONFIG_PANTECH_CAMERA_AS0260
+    MSM_CAMERA_I2C_CMD_MCU,
+#endif
 };
 
 struct msm_camera_i2c_reg_conf {
@@ -74,6 +77,18 @@ struct msm_camera_i2c_enum_conf_array {
 	uint16_t delay;
 	enum msm_camera_i2c_data_type data_type;
 };
+
+#ifdef CONFIG_PANTECH_CAMERA
+int32_t msm_camera_i2c_rxdata_2(struct msm_camera_i2c_client *client,
+    unsigned char *rxdata, int data_length);
+#endif
+
+#ifdef CONFIG_PANTECH_CAMERA_TUNER
+typedef struct {
+    uint16_t reg_addr;
+    uint16_t reg_data;
+} msm_camera_i2c_reg_tune_t;
+#endif
 
 int32_t msm_camera_i2c_rxdata(struct msm_camera_i2c_client *client,
 	unsigned char *rxdata, int data_length);
@@ -110,6 +125,12 @@ int32_t msm_camera_i2c_poll(struct msm_camera_i2c_client *client,
 int32_t msm_camera_i2c_write_tbl(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_reg_conf *reg_conf_tbl, uint16_t size,
 	enum msm_camera_i2c_data_type data_type);
+
+#ifdef CONFIG_PANTECH_CAMERA_TUNER
+int32_t msm_camera_i2c_write_tuner(struct msm_camera_i2c_client *client,
+    msm_camera_i2c_reg_tune_t *reg_conf_tbl, uint16_t size,
+    enum msm_camera_i2c_data_type data_type);
+#endif
 
 int32_t msm_sensor_write_conf_array(struct msm_camera_i2c_client *client,
 	struct msm_camera_i2c_conf_array *array, uint16_t index);

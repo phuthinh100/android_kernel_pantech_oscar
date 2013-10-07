@@ -18,6 +18,104 @@
 
 #define PM8921_CHARGER_DEV_NAME	"pm8921-charger"
 
+#ifdef CONFIG_PANTECH_CHARGER
+#if defined(CONFIG_MACH_MSM8960_EF46L) || defined(CONFIG_MACH_MSM8960_EF45K) || defined(CONFIG_MACH_MSM8960_EF47S)
+#if (BOARD_VER >= TP10)
+#define FACT_CABLE_MIN      1240000
+#define FACT_CABLE_MAX      1320000
+#else
+#define FACT_CABLE_MIN      1580000
+#define FACT_CABLE_MAX      1730000
+#endif
+#else
+#define FACT_CABLE_MIN      600000
+#define FACT_CABLE_MAX      800000
+#endif
+
+#if defined(CONFIG_MACH_MSM8960_STARQ)
+#define DEFAULT_IUSB_IMAX      500 //for 450
+#define STANDARD_IUSB_IMAX 500 //for 450
+#define TA_IUSB_IMAX       850
+#define FACTORY_IUSB_IMAX  1500
+#define WIRELESS_IUSB_IMAX   700 //for 600
+#define UNKNOWN_IUSB_IMAX   850
+
+#define DEFAULT_IBAT_IMAX      450
+#define STANDARD_IBAT_IMAX 450
+#define TA_IBAT_IMAX       850
+#define FACTORY_IBAT_IMAX  900
+#define WIRELESS_IBAT_IMAX   600
+#define UNKNOWN_IBAT_IMAX   850 
+#elif defined (CONFIG_MACH_MSM8960_EF45K) || defined (CONFIG_MACH_MSM8960_EF47S)
+#define DEFAULT_IUSB_IMAX  500 //for 450
+#define STANDARD_IUSB_IMAX 500 //for 450
+#define TA_IUSB_IMAX       900  //1300
+#define FACTORY_IUSB_IMAX  1500
+#define WIRELESS_IUSB_IMAX  700 //for 600
+#define UNKNOWN_IUSB_IMAX   900
+
+#define DEFAULT_IBAT_IMAX  450
+#define STANDARD_IBAT_IMAX 450
+#define TA_IBAT_IMAX       875 //925
+#define FACTORY_IBAT_IMAX  900
+#define WIRELESS_IBAT_IMAX  600
+#define UNKNOWN_IBAT_IMAX   900
+#elif defined(CONFIG_MACH_MSM8960_EF46L)
+#define DEFAULT_IUSB_IMAX   500 //for 450
+#define STANDARD_IUSB_IMAX  500 //for 450
+#define TA_IUSB_IMAX       900  //1300
+#define FACTORY_IUSB_IMAX  1500
+#define WIRELESS_IUSB_IMAX  700 //for 600
+#define UNKNOWN_IUSB_IMAX   900
+
+#define DEFAULT_IBAT_IMAX   450
+#define STANDARD_IBAT_IMAX  450
+#define TA_IBAT_IMAX      875 //925
+#define FACTORY_IBAT_IMAX   900
+#define WIRELESS_IBAT_IMAX  600
+#define UNKNOWN_IBAT_IMAX   900
+#elif defined(CONFIG_MACH_MSM8960_OSCAR)
+#define DEFAULT_IUSB_IMAX   500 //for 450
+#define STANDARD_IUSB_IMAX  500 //for 450
+#define TA_IUSB_IMAX        900
+#define FACTORY_IUSB_IMAX  1500
+#define WIRELESS_IUSB_IMAX  700 //for 600
+#define UNKNOWN_IUSB_IMAX   900
+
+#define DEFAULT_IBAT_IMAX   450
+#define STANDARD_IBAT_IMAX  450
+#define TA_IBAT_IMAX        850
+#define FACTORY_IBAT_IMAX   900
+#define WIRELESS_IBAT_IMAX  600
+#define UNKNOWN_IBAT_IMAX   850
+#else
+#define DEFAULT_IUSB_IMAX      500 //for 450
+#define STANDARD_IUSB_IMAX 500 //for 450
+#define TA_IUSB_IMAX       900
+#define FACTORY_IUSB_IMAX  1500
+#define WIRELESS_IUSB_IMAX   700 //for 600
+#define UNKNOWN_IUSB_IMAX   500
+
+#define DEFAULT_IBAT_IMAX      450
+#define STANDARD_IBAT_IMAX 450
+#define TA_IBAT_IMAX       900
+#define FACTORY_IBAT_IMAX  900
+#define WIRELESS_IBAT_IMAX   600
+#define UNKNOWN_IBAT_IMAX   450
+#endif
+
+
+typedef enum{
+  NO_CABLE,
+  STANDARD_CABLE,
+  FACTORY_CABLE,
+  TA_CABLE,
+  WIRELESS_CABLE,
+  UNKNOWN_CABLE,
+  INVALID_CABLE
+}cable_type;
+#endif
+
 struct pm8xxx_charger_core_data {
 	unsigned int	vbat_channel;
 	unsigned int	batt_temp_channel;
@@ -133,7 +231,6 @@ struct pm8921_charger_platform_data {
 	unsigned int			min_voltage;
 	unsigned int			uvd_thresh_voltage;
 	unsigned int			resume_voltage_delta;
-	int				resume_charge_percent;
 	unsigned int			term_current;
 	int				cool_temp;
 	int				warm_temp;
@@ -170,9 +267,14 @@ enum pm8921_charger_source {
 };
 
 #if defined(CONFIG_PM8921_CHARGER) || defined(CONFIG_PM8921_CHARGER_MODULE)
+#ifdef CONFIG_PANTECH_CHARGER
+void pm8921_charger_vbus_draw(unsigned int mA, unsigned int chg_type);
+#else
 void pm8921_charger_vbus_draw(unsigned int mA);
+#endif
 int pm8921_charger_register_vbus_sn(void (*callback)(int));
 void pm8921_charger_unregister_vbus_sn(void (*callback)(int));
+
 /**
  * pm8921_charger_enable -
  *
@@ -289,6 +391,9 @@ int pm8921_usb_ovp_set_hystersis(enum pm8921_usb_debounce_time ms);
  *
  */
 int pm8921_usb_ovp_disable(int disable);
+#if defined(CONFIG_PANTECH_PMIC_MAX17058)
+int get_max17058_soc(void);
+#endif
 /**
  * pm8921_is_batfet_closed - battery fet status
  *
@@ -297,7 +402,11 @@ int pm8921_usb_ovp_disable(int disable);
  */
 int pm8921_is_batfet_closed(void);
 #else
+#ifdef CONFIG_PANTECH_CHARGER
+static inline void pm8921_charger_vbus_draw(unsigned int mA, unsigned int chg_type)
+#else
 static inline void pm8921_charger_vbus_draw(unsigned int mA)
+#endif
 {
 }
 static inline int pm8921_charger_register_vbus_sn(void (*callback)(int))
@@ -372,6 +481,12 @@ static inline int pm8921_is_batfet_closed(void)
 {
 	return 1;
 }
+#if defined(CONFIG_PANTECH_PMIC_MAX17058)
+static inline int get_max17058_soc(void)
+{
+	return -ENXIO;
+}
+#endif
 #endif
 
 #endif

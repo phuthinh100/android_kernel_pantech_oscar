@@ -29,6 +29,9 @@
 
 #define GSL_RB_NOP_SIZEDWORDS				2
 
+/* MARUKO Fixed mmu pagefault due to race condition.(SR#01107699) p13447 shinjg 20130225 */
+#define	CONFIG_QUALCOMM_BUG_FIX_MMU_PAGEFAULT
+
 /*
  * CP DEBUG settings for all cores:
  * DYNAMIC_CLK_DISABLE [27] - turn off the dynamic clock control
@@ -539,8 +542,10 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	if (adreno_is_a3xx(adreno_dev))
 		total_sizedwords += 7;
 
+#if defined(CONFIG_QUALCOMM_BUG_FIX_MMU_PAGEFAULT)
 	if (adreno_is_a2xx(adreno_dev))
 		total_sizedwords += 2; /* CP_WAIT_FOR_IDLE */
+#endif
 
 	total_sizedwords += 2; /* scratchpad ts for recovery */
 	if (context->flags & CTXT_FLAGS_PER_CONTEXT_TS) {

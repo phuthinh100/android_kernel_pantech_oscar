@@ -104,14 +104,20 @@ static struct ctl_table net_core_table[] = {
 		.procname	= "wmem_default",
 		.data		= &sysctl_wmem_default,
 		.maxlen		= sizeof(int),
+// --> FEATURE_SKY_WIFI_DIRECT_CUSTOMIZE_PACKET_BUFFER_SIZE    
+//		.mode		= 0666,
 		.mode		= 0644,
+// <-- FEATURE_SKY_WIFI_DIRECT_CUSTOMIZE_PACKET_BUFFER_SIZE    
 		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "rmem_default",
 		.data		= &sysctl_rmem_default,
 		.maxlen		= sizeof(int),
+// --> FEATURE_SKY_WIFI_DIRECT_CUSTOMIZE_PACKET_BUFFER_SIZE    
+//		.mode		= 0666,
 		.mode		= 0644,
+// <-- FEATURE_SKY_WIFI_DIRECT_CUSTOMIZE_PACKET_BUFFER_SIZE    
 		.proc_handler	= proc_dointvec
 	},
 	{

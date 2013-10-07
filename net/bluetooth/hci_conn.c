@@ -46,6 +46,13 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
+//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ++++
+#ifndef FALSE
+#define FALSE 0
+#define TRUE (!FALSE)
+#endif
+//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ----
+
 struct hci_conn *hci_le_connect(struct hci_dev *hdev, __u16 pkt_type,
 				bdaddr_t *dst, __u8 sec_level, __u8 auth_type,
 				struct bt_le_params *le_params)
@@ -535,6 +542,10 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 
 	conn->power_save = 1;
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ++++
+    conn->conn_valid = TRUE;
+	spin_lock_init(&conn->lock);
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ----
 	wake_lock_init(&conn->idle_lock, WAKE_LOCK_SUSPEND, "bt_idle");
 
 	switch (type) {
@@ -606,6 +617,12 @@ int hci_conn_del(struct hci_conn *conn)
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("%s conn %p handle %d", hdev->name, conn, conn->handle);
+
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ++++
+    spin_lock_bh(&conn->lock);
+    conn->conn_valid = FALSE; /* conn data is being released */
+    spin_unlock_bh(&conn->lock);
+	//20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ----
 
 	/* Make sure no timers are running */
 	del_timer(&conn->idle_timer);
@@ -1055,9 +1072,15 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 
 timer:
 	if (hdev->idle_timeout > 0) {
-		mod_timer(&conn->idle_timer,
-			jiffies + msecs_to_jiffies(hdev->idle_timeout));
-		wake_lock(&conn->idle_lock);
+        //20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ++++
+        spin_lock_bh(&conn->lock);
+        if (conn->conn_valid) {
+            mod_timer(&conn->idle_timer,
+                jiffies + msecs_to_jiffies(hdev->idle_timeout));
+            wake_lock(&conn->idle_lock);
+        }
+        spin_unlock_bh(&conn->lock);
+        //20121018 P12116_BT_SYSTEM Bluetooth_Validate_hci_conn_validity_before_refering_wakelock QCT_patch ----
 	}
 }
 

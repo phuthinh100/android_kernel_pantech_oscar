@@ -27,11 +27,24 @@
 #include <linux/ion.h>
 #include <mach/iommu_domains.h>
 
-#define CONFIG_MSM_CAMERA_DEBUG
+#ifdef CONFIG_MSM_CAMERA_WAKELOCK
+#include <linux/wakelock.h> 
+#endif
+
+#undef CONFIG_MSM_CAMERA_DEBUG
+#undef F_PANTECH_CAMERA_LOG_PRINTK
+
 #ifdef CONFIG_MSM_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #else
 #define CDBG(fmt, args...) do { } while (0)
+#endif
+#ifdef F_PANTECH_CAMERA_LOG_PRINTK
+#define SKYCDBG(fmt, args...) printk(KERN_INFO "SKYCDBG: " fmt, ##args)
+#define SKYCERR(fmt, args...) printk(KERN_ERR "SKYCERR: " fmt, ##args)
+#else
+#define SKYCDBG(fmt, args...) do{}while(0)
+#define SKYCERR(fmt, args...) do{}while(0)
 #endif
 
 #define PAD_TO_2K(a, b) ((!b) ? a : (((a)+2047) & ~2047))

@@ -39,6 +39,9 @@ u32 dsi_irq;
 u32 esc_byte_ratio;
 
 static boolean tlmm_settings = FALSE;
+#ifdef CONFIG_F_SKYDISP_SILENT_BOOT //silent boot p13832@shji 	
+extern int backlight_value;
+#endif
 
 static int mipi_dsi_probe(struct platform_device *pdev);
 static int mipi_dsi_remove(struct platform_device *pdev);
@@ -68,6 +71,9 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
 	struct msm_panel_info *pinfo;
+#if defined(CONFIG_MACH_MSM8960_STARQ)
+    struct mipi_panel_info *mipi;
+#endif
 
 	pr_debug("%s+:\n", __func__);
 
@@ -78,6 +84,10 @@ static int mipi_dsi_off(struct platform_device *pdev)
 		mutex_lock(&mfd->dma->ov_mutex);
 	else
 		down(&mfd->dma->mutex);
+
+#ifdef CONFIG_LCD_SHARP_OFF_SEQUENCE
+    ret = panel_next_off(pdev);
+#endif
 
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		mipi_dsi_prepare_clocks();
@@ -103,13 +113,28 @@ static int mipi_dsi_off(struct platform_device *pdev)
 			mipi_dsi_set_tear_off(mfd);
 		}
 	}
-
+#ifndef CONFIG_LCD_SHARP_OFF_SEQUENCE
 	ret = panel_next_off(pdev);
-
+#endif
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(0);
 #endif
 
+#if defined(CONFIG_MACH_MSM8960_STARQ)
+    mipi  = &mfd->panel_info.mipi;
+
+    if (mipi->force_clk_lane_hs) {
+        u32 tmp;
+
+        tmp = MIPI_INP(MIPI_DSI_BASE + 0xA8);
+        tmp &= ~(1<<28);
+        MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
+        wmb();
+#if !defined(FEATURE_AARM_RELEASE_MODE) //not user mode
+        printk("[MIPI: shinbrad Low speed Clk Set(Off Sequence) .................................................]\n");
+#endif
+    }
+#endif
 	spin_lock_bh(&dsi_clk_lock);
 	mipi_dsi_clk_disable();
 
@@ -134,7 +159,9 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	return ret;
 }
-
+#if defined(CONFIG_F_SKYDISP_CONT_SPLASH_DISP)
+static int first_enable = 0;
+#endif
 static int mipi_dsi_on(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -156,7 +183,13 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
 	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
-
+#if defined(CONFIG_F_SKYDISP_CONT_SPLASH_DISP)
+    if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save && (first_enable ==0)) {
+        mipi_dsi_pdata->dsi_power_save(0);
+        first_enable=1;
+        mdelay(30);
+    }
+#endif
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(1);
 
@@ -246,7 +279,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	}
 
 	mipi_dsi_host_init(mipi);
-
+#if 0
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 
@@ -255,15 +288,36 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
 		wmb();
 	}
+#endif
 
 	if (mdp_rev >= MDP_REV_41)
 		mutex_lock(&mfd->dma->ov_mutex);
 	else
 		down(&mfd->dma->mutex);
 
+#ifdef CONFIG_F_SKYDISP_SILENT_BOOT //silent boot p13832@shji
+        if(backlight_value){
+            printk("########## First booting = \n");
+        }
+        else
+            ret = panel_next_on(pdev);
+#else
 	ret = panel_next_on(pdev);
+#endif
 
 	mipi_dsi_op_mode_config(mipi->mode);
+#if defined(CONFIG_MACH_MSM8960_STARQ)
+    if (mipi->force_clk_lane_hs) {
+        u32 tmp;
+        tmp = MIPI_INP(MIPI_DSI_BASE + 0xA8);
+        tmp |= (1<<28);
+        MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
+        wmb();
+#if !defined(FEATURE_AARM_RELEASE_MODE) //not user mode
+        printk("[MIPI: shinbrad High speed Clk Set .................................................]\n");
+#endif
+    }
+#endif
 
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		if (pinfo->lcd.vsync_enable) {

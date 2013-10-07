@@ -76,6 +76,15 @@ msm_mipi-objs := mipi_dsi.o mipi_dsi_host.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
 
 # MIPI manufacture
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ROHM) += mipi_rohm.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_SONY) += mipi_sony.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_HIMAX) += mipi_himax.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_ORTUS) += mipi_ortus.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_SAMSUNG) += mipi_samsung.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_SAMSUNG_OLED) += mipi_samsung_oled.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_SAMSUNG_OLED_PREMIA) += mipi_samsung_oled_premia.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_SAMSUNG_OCTA) += mipi_samsung_octa.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI_LGD) += mipi_lgd.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_TOSHIBA) += mipi_toshiba.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_NOVATEK) += mipi_novatek.o
 obj-$(CONFIG_FB_MSM_MIPI_DSI_ORISE) += mipi_orise.o
@@ -130,6 +139,16 @@ obj-y += mipi_chimei_wxga_pt.o
 obj-y += mipi_chimei_wuxga.o
 obj-y += mipi_truly_video_wvga_pt.o
 else
+obj-$(CONFIG_FB_MSM_MIPI_ROHM_VIDEO_HD) += mipi_rohm_video_hd.o
+obj-$(CONFIG_FB_MSM_MIPI_SONY_VIDEO_WXGA) += mipi_sony_video_wxga.o
+obj-$(CONFIG_FB_MSM_MIPI_HIMAX_VIDEO_WXGA) += mipi_himax_video_wxga.o
+obj-$(CONFIG_FB_MSM_MIPI_ORTUS_VIDEO_WXGA) += mipi_ortus_video_wxga.o
+obj-$(CONFIG_FB_MSM_MIPI_SAMSUNG_VIDEO_WSVGA) += mipi_samsung_video_wsvga.o
+obj-$(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_WVGA) += mipi_samsung_oled_video_wvga.o
+obj-$(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_HD) += mipi_samsung_oled_premia_video_hd.o
+obj-$(CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_VIDEO_QHD) += mipi_samsung_octa_video_qhd.o
+obj-$(CONFIG_FB_MSM_MIPI_SAMSUNG_OLED_VIDEO_HD) += mipi_samsung_oled_premia_video_hd.o
+obj-$(CONFIG_FB_MSM_MIPI_LGD_VIDEO_WVGA) += mipi_lgd_video_wvga.o
 obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT) += mipi_toshiba_video_wvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WSVGA_PT) += mipi_toshiba_video_wsvga_pt.o
 obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WUXGA) += mipi_toshiba_video_wuxga.o
@@ -194,5 +213,8 @@ endif
 
 obj-$(CONFIG_MSM_VIDC_1080P) += vidc/
 obj-$(CONFIG_MSM_VIDC_720P) += vidc/
+
+obj-$(CONFIG_PANTECH_FB_MSM_MHL_SII9244) += mhl_sii9244.o
+obj-$(CONFIG_PANTECH_FB_MSM_MHL_SII9244) += mhl_sii9244_driver.o
 clean:
 	rm *.o .*cmd

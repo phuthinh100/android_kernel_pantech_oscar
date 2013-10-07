@@ -183,6 +183,34 @@ struct msm_tsif_device {
 	void (*client_notify)(void *client_data);
 };
 
+
+#ifdef CONFIG_SKY_DMB_TSIF_IF
+#ifdef CONFIG_SKY_TDMB
+extern irqreturn_t tdmb_interrupt(int irq, void *dev_id);
+#elif defined(CONFIG_SKY_ISDBT)
+extern irqreturn_t isdbt_interrupt(int irq, void *dev_id);
+#else
+## error
+#endif
+//#define FEATURE_TSIF_DEBUG_MSG
+//#define FEATURE_TSIF_CHECK_ON_BOOT
+
+#ifdef FEATURE_TSIF_CHECK_ON_BOOT
+unsigned char tsif_buf[TSIF_PKT_SIZE*TSIF_PKTS_IN_CHUNK_DEFAULT];
+static void tsif_data_check_on_boot(void * data_buffer, int size)
+{
+    int i;
+    memset((void*)&tsif_buf, 0xff, sizeof(tsif_buf));
+    for(i=0; i < (size/TSIF_PKT_SIZE); i++)
+    {
+        memcpy((void*)&tsif_buf[i*188], (data_buffer+i*TSIF_PKT_SIZE), 188);
+        pr_info("TSIF data check [%x] [%x] [%x] [%x]",tsif_buf[i*188],tsif_buf[i*188+1],tsif_buf[i*188+2],tsif_buf[i*188+3]);
+    }
+}
+#endif
+
+#endif /* CONFIG_SKY_DMB_TSIF_IF */
+
 /* ===clocks begin=== */
 
 static void tsif_put_clocks(struct msm_tsif_device *tsif_device)
@@ -249,18 +277,23 @@ ret:
 
 static void tsif_clock(struct msm_tsif_device *tsif_device, int on)
 {
+
+#ifdef FEATURE_TSIF_DEBUG_MSG
+    pr_info("[%s] on_off[%d]\n", __func__, on);
+#endif
+
 	if (on) {
 		if (tsif_device->tsif_clk)
-			clk_enable(tsif_device->tsif_clk);
+			clk_prepare_enable(tsif_device->tsif_clk);
 		if (tsif_device->tsif_pclk)
-			clk_enable(tsif_device->tsif_pclk);
-		clk_enable(tsif_device->tsif_ref_clk);
+			clk_prepare_enable(tsif_device->tsif_pclk);
+		clk_prepare_enable(tsif_device->tsif_ref_clk);
 	} else {
 		if (tsif_device->tsif_clk)
-			clk_disable(tsif_device->tsif_clk);
+			clk_disable_unprepare(tsif_device->tsif_clk);
 		if (tsif_device->tsif_pclk)
-			clk_disable(tsif_device->tsif_pclk);
-		clk_disable(tsif_device->tsif_ref_clk);
+			clk_disable_unprepare(tsif_device->tsif_pclk);
+		clk_disable_unprepare(tsif_device->tsif_ref_clk);
 	}
 }
 /* ===clocks end=== */
@@ -386,8 +419,15 @@ static int tsif_start_hw(struct msm_tsif_device *tsif_device)
 	u32 ctl = TSIF_STS_CTL_EN_IRQ |
 		  TSIF_STS_CTL_EN_TIME_LIM |
 		  TSIF_STS_CTL_EN_TCR |
-		  TSIF_STS_CTL_EN_DM;
+		  TSIF_STS_CTL_EN_DM
+#if defined(CONFIG_SKY_TDMB_RTV_BB) && defined(CONFIG_MACH_MSM8960_EF46L) //EF46L_PT only RaonTech
+		  | TSIF_STS_CTL_INV_CLOCK
+#endif
+		  ;
 	dev_info(&tsif_device->pdev->dev, "%s\n", __func__);
+#ifdef FEATURE_TSIF_DEBUG_MSG
+    pr_info("[%s] mode[%d]\n", __func__, tsif_device->mode);
+#endif
 	switch (tsif_device->mode) {
 	case 1: /* mode 1 */
 		ctl |= (0 << 5);
@@ -532,6 +572,9 @@ static void tsif_dmov_complete_func(struct msm_dmov_cmd *cmd,
 	struct tsif_xfer *xfer;
 	struct msm_tsif_device *tsif_device;
 	int reschedule = 0;
+#ifdef FEATURE_TSIF_DEBUG_MSG
+    pr_info("[%s], result[0x%08x]\n", __func__, result);
+#endif
 	if (!(result & DMOV_RSLT_VALID)) { /* can I trust to @cmd? */
 		pr_err("Invalid DMOV result: rc=0x%08x, cmd = %p", result, cmd);
 		return;
@@ -560,6 +603,21 @@ static void tsif_dmov_complete_func(struct msm_dmov_cmd *cmd,
 		if (w == xfer->wi)
 			tsif_device->stat_soft_drop++;
 		reschedule = (tsif_device->state == tsif_state_running);
+#ifdef CONFIG_SKY_DMB_TSIF_IF
+#ifdef CONFIG_SKY_TDMB
+        tdmb_interrupt((int)tsif_device->irq, (void*)tsif_device->pdev->id);
+#elif defined(CONFIG_SKY_ISDBT)
+        isdbt_interrupt((int)tsif_device->irq, (void*)tsif_device->pdev->id);
+#endif
+#endif
+
+#ifdef FEATURE_TSIF_CHECK_ON_BOOT
+{
+    void *data_addr;
+    data_addr= tsif_device->data_buffer + data_offset;
+    tsif_data_check_on_boot(data_addr, TSIF_PKT_SIZE*TSIF_PKTS_IN_CHUNK);
+}
+#endif
 #ifdef CONFIG_TSIF_DEBUG
 		/* IFI calculation */
 		/*
@@ -1072,6 +1130,9 @@ static int action_open(struct msm_tsif_device *tsif_device)
 	}
 
 	wake_lock(&tsif_device->wake_lock);
+#ifdef FEATURE_TSIF_DEBUG_MSG
+    pr_info("[%s] end\n", __func__);
+#endif
 	return rc;
 }
 

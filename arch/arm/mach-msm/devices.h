@@ -55,16 +55,41 @@ extern struct platform_device *msm_device_uart_gsbi9;
 extern struct platform_device msm_device_uart_dm6;
 extern struct platform_device msm_device_uart_dm9;
 
+#if !defined(CONFIG_OV8820_ACT) && !defined(CONFIG_S5K3H2_ACT)
 extern struct platform_device msm8960_device_uart_gsbi2;
+#endif
 extern struct platform_device msm8960_device_uart_gsbi5;
 extern struct platform_device msm8960_device_uart_gsbi8;
 extern struct platform_device msm8960_device_ssbi_pmic;
+#ifdef CONFIG_PANTECH_CAMERA_FLASH
+extern struct platform_device msm8960_device_qup_i2c_gsbi1;
+#endif
+
+#if defined(CONFIG_PANTECH_PMIC_MAX17058)
+#if defined(T_STARQ)
+extern struct platform_device msm8960_device_qup_i2c_gsbi1;
+#endif
+#endif
+
+//#ifdef CONFIG_PANTECH_CAMERA //AF
+#if defined(CONFIG_OV8820_ACT) || defined(CONFIG_S5K3H2_ACT)
+extern struct platform_device msm8960_device_qup_i2c_gsbi2;
+#endif
 extern struct platform_device msm8960_device_qup_i2c_gsbi3;
 extern struct platform_device msm8960_device_qup_i2c_gsbi4;
+#ifdef CONFIG_SKY_DMB_I2C_HW
+extern struct platform_device msm8960_device_qup_i2c_gsbi8;
+#endif
+#if defined(CONFIG_PANTECH_PMIC_MAX17058)
+#if defined(T_OSCAR)
 extern struct platform_device msm8960_device_qup_i2c_gsbi9;
+#endif
+#endif
 extern struct platform_device msm8960_device_qup_i2c_gsbi10;
 extern struct platform_device msm8960_device_qup_i2c_gsbi12;
+#ifndef CONFIG_PANTECH_CAMERA_FLASH
 extern struct platform_device msm8960_device_qup_spi_gsbi1;
+#endif
 extern struct platform_device msm8960_gemini_device;
 extern struct platform_device msm8960_mercury_device;
 extern struct platform_device msm8960_device_i2c_mux_gsbi4;

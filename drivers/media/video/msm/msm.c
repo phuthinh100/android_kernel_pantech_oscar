@@ -275,7 +275,9 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 	struct msm_ctrl_cmd *ctrlcmd;
 	struct msm_device_queue *queue =
 		&server_dev->server_queue[out->queue_idx].ctrl_q;
+#if !defined(CONFIG_MACH_MSM8960_STARQ)
 	struct msm_cam_v4l2_device *pcam = server_dev->pcam_active;
+#endif
 
 	struct v4l2_event v4l2_evt;
 	struct msm_isp_event_ctrl *isp_event;
@@ -339,9 +341,23 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 	D("Waiting for config status\n");
 	rc = wait_event_interruptible_timeout(queue->wait,
 		!list_empty_careful(&queue->list),
+#if 1//CONFIG_PANTECH_CAMERA_FLASH for FLASH event timing
+        msecs_to_jiffies(out->timeout_ms));
+#else
 		msecs_to_jiffies(out->timeout_ms));
+#endif
 	D("Waiting is over for config status\n");
 	if (list_empty_careful(&queue->list)) {
+#ifdef CONFIG_MACH_MSM8960_STARQ
+        if (!rc)
+            rc = -ETIMEDOUT;
+        if (rc < 0) {
+            if (++server_dev->server_evt_id == 0)
+                server_dev->server_evt_id++;
+            pr_err("%s: wait_event error %d\n", __func__, rc);
+            return rc;
+        }
+#else
 		if (!rc)
 			rc = -ETIMEDOUT;
 		if (rc < 0) {
@@ -351,6 +367,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 			msm_cam_stop_hardware(pcam);
 			return rc;
 		}
+#endif
 	}
 
 	rcmd = msm_dequeue(queue, list_control);
@@ -1078,6 +1095,9 @@ static int msm_camera_v4l2_qbuf(struct file *f, void *pctx,
 		/* Reject the buffer if planes array was not allocated */
 		if (pb->m.planes == NULL) {
 			pr_err("%s Planes array is null\n", __func__);
+#ifdef CONFIG_MACH_MSM8960_STARQ
+            mutex_unlock(&pcam_inst->inst_lock);
+#endif
 			return -EINVAL;
 		}
 		for (i = 0; i < pcam_inst->plane_info.num_planes; i++) {

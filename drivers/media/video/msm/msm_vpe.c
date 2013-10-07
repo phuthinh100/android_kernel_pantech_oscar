@@ -639,10 +639,21 @@ void msm_vpe_subdev_release(void)
 		return;
 	}
 
+#ifdef CONFIG_MACH_MSM8960_STARQ
+	if (vpe_ctrl->vpebase != NULL) { 
+	vpe_reset();
+		iounmap(vpe_ctrl->vpebase); 
+		vpe_ctrl->vpebase = NULL; 
+	} 
+
+	vpe_disable();
+#else
 	vpe_reset();
 	vpe_disable();
 	iounmap(vpe_ctrl->vpebase);
 	vpe_ctrl->vpebase = NULL;
+#endif
+
 	atomic_set(&vpe_init_done, 0);
 }
 EXPORT_SYMBOL(msm_vpe_subdev_release);

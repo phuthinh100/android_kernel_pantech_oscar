@@ -469,6 +469,9 @@ struct input_keymap_entry {
 #define KEY_RFKILL		247	/* Key that controls all radios */
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+#define KEY_MESSAGE		249  // p11223_key
+#define KEY_BROWSER		250  // p11223_key
+#define KEY_RECENTAPPS		251  // p11223_key. In ICS KEY_RECENTAPPS num is 248
 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 

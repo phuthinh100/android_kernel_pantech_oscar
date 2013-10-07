@@ -463,6 +463,7 @@ bail:
 }
 EXPORT_SYMBOL(pm8xxx_calib_ccadc);
 
+#if 0
 static void calibrate_ccadc_work(struct work_struct *work)
 {
 	struct pm8xxx_ccadc_chip *chip = container_of(work,
@@ -473,6 +474,7 @@ static void calibrate_ccadc_work(struct work_struct *work)
 			round_jiffies_relative(msecs_to_jiffies
 			(chip->calib_delay_ms)));
 }
+#endif
 
 static irqreturn_t pm8921_bms_ccadc_eoc_handler(int irq, void *data)
 {
@@ -690,8 +692,8 @@ static int __devinit pm8xxx_ccadc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 	the_chip = chip;
-	INIT_DELAYED_WORK(&chip->calib_ccadc_work, calibrate_ccadc_work);
-	schedule_delayed_work(&chip->calib_ccadc_work, 0);
+//	INIT_DELAYED_WORK(&chip->calib_ccadc_work, calibrate_ccadc_work);
+//	schedule_delayed_work(&chip->calib_ccadc_work, 0);
 
 	create_debugfs_entries(chip);
 
